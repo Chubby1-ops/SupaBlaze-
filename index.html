@@ -231,7 +231,7 @@ document.getElementById("sbClose").onclick=function(){
       savedBlob = item;
     }
 
-    return originalCreateURL(item);
+            return originalCreateURL(item);
   };
 
   const downloadButton = document.getElementById("sbDownload");
@@ -242,7 +242,7 @@ document.getElementById("sbClose").onclick=function(){
 
     downloadButton.onclick = async function () {
       if (!savedBlob) {
-        alert("Process the file again first.");
+        downloadButton.textContent = "Process a file first";
         return;
       }
 
@@ -260,7 +260,9 @@ document.getElementById("sbClose").onclick=function(){
       const file = new File(
         [savedBlob],
         "SupaBlaze-result." + extension,
-        { type: savedBlob.type || "application/octet-stream" }
+        {
+          type: savedBlob.type || "application/octet-stream"
+        }
       );
 
       try {
@@ -302,18 +304,21 @@ document.getElementById("sbClose").onclick=function(){
 
     openButton.onclick = function () {
       if (!savedBlob) {
-        alert("Process the file again first.");
+        openButton.textContent = "Process a file first";
         return;
       }
 
       if (!savedBlob.type.startsWith("image/")) {
-        downloadButton.click();
+        if (downloadButton) downloadButton.click();
         return;
       }
 
-      const oldPreview = document.getElementById("sbPreviewOverlay");
+      const existingPreview =
+        document.getElementById("sbPreviewOverlay");
 
-      if (oldPreview) oldPreview.remove();
+      if (existingPreview) {
+        existingPreview.remove();
+      }
 
       const previewURL = originalCreateURL(savedBlob);
       const overlay = document.createElement("div");
@@ -324,17 +329,24 @@ document.getElementById("sbClose").onclick=function(){
         <div class="sbPreviewPanel">
           <button id="sbPreviewClose">×</button>
           <p>Result preview</p>
-          <img src="${previewURL}" alt="SupaBlaze processed result">
-          <small>Press and hold the image if your phone provides a save option.</small>
+          <img
+            src="${previewURL}"
+            alt="SupaBlaze processed result"
+          >
+          <small>
+            Use Save / Share Result to send the file to WhatsApp,
+            Telegram, Drive or Files.
+          </small>
         </div>
       `;
 
       document.body.appendChild(overlay);
 
-      document.getElementById("sbPreviewClose").onclick = function () {
-        overlay.remove();
-        URL.revokeObjectURL(previewURL);
-      };
+      document.getElementById("sbPreviewClose").onclick =
+        function () {
+          overlay.remove();
+          URL.revokeObjectURL(previewURL);
+        };
     };
   }
 })();
@@ -377,7 +389,9 @@ document.getElementById("sbClose").onclick=function(){
 }
 
 .sbPreviewPanel small {
+  display: block;
   color: #A1A1AA;
+  line-height: 1.5;
 }
 
 #sbPreviewClose {
@@ -393,92 +407,6 @@ document.getElementById("sbClose").onclick=function(){
   background: #7C3AED;
 }
 </style>
-<script>
-(function () {
-  let latestFile = null;
-  const realCreateURL = URL.createObjectURL.bind(URL);
 
-  URL.createObjectURL = function (blob) {
-    if (blob instanceof Blob && blob.size > 0) {
-      latestFile = blob;
-    }
-    return realCreateURL(blob);
-  };
-
-  function activateShareButton() {
-    const download = document.getElementById("sbDownload");
-    const open = document.getElementById("sbOpen");
-
-    if (!download) return;
-
-    download.textContent = "Save / Share Result";
-
-    if (open) {
-      open.style.display = "none";
-    }
-
-    download.onclick = async function () {
-      if (!latestFile) {
-        download.textContent = "Process a file first";
-        return;
-      }
-
-      let ext = "bin";
-
-      if (latestFile.type.includes("png")) ext = "png";
-      else if (latestFile.type.includes("jpeg")) ext = "jpg";
-      else if (latestFile.type.includes("webp")) ext = "webp";
-      else if (latestFile.type.includes("wav")) ext = "wav";
-      else if (latestFile.type.includes("webm")) ext = "webm";
-      else if (latestFile.type.includes("zip")) ext = "zip";
-      else if (latestFile.type.includes("pdf")) ext = "pdf";
-      else if (latestFile.type.includes("text")) ext = "txt";
-
-      const file = new File(
-        [latestFile],
-        "SupaBlaze-result." + ext,
-        { type: latestFile.type || "application/octet-stream" }
-      );
-
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
-        try {
-          await navigator.share({
-            title: "SupaBlaze Result",
-            files: [file]
-          });
-          return;
-        } catch (error) {
-          if (error.name === "AbortError") return;
-        }
-      }
-
-      const url = realCreateURL(latestFile);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = file.name;
-      link.target = "_blank";
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setTimeout(function () {
-        URL.revokeObjectURL(url);
-      }, 60000);
-    };
-  }
-
-  window.addEventListener("load", activateShareButton);
-
-  new MutationObserver(activateShareButton).observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-})();
-        </script>
-</body></html>
+</body>
+</html>
