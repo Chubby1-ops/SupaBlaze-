@@ -220,4 +220,177 @@ document.getElementById("sbClose").onclick=function(){
 
 })();
 </script>
+<script>
+(function () {
+  let savedBlob = null;
+
+  const originalCreateURL = URL.createObjectURL.bind(URL);
+
+  URL.createObjectURL = function (item) {
+    if (item instanceof Blob && item.size > 0) {
+      savedBlob = item;
+    }
+
+    return originalCreateURL(item);
+  };
+
+  const downloadButton = document.getElementById("sbDownload");
+  const openButton = document.getElementById("sbOpen");
+
+  if (downloadButton) {
+    downloadButton.textContent = "Save / Share Result";
+
+    downloadButton.onclick = async function () {
+      if (!savedBlob) {
+        alert("Process the file again first.");
+        return;
+      }
+
+      let extension = "bin";
+
+      if (savedBlob.type.includes("png")) extension = "png";
+      else if (savedBlob.type.includes("jpeg")) extension = "jpg";
+      else if (savedBlob.type.includes("webp")) extension = "webp";
+      else if (savedBlob.type.includes("wav")) extension = "wav";
+      else if (savedBlob.type.includes("webm")) extension = "webm";
+      else if (savedBlob.type.includes("zip")) extension = "zip";
+      else if (savedBlob.type.includes("pdf")) extension = "pdf";
+      else if (savedBlob.type.includes("text")) extension = "txt";
+
+      const file = new File(
+        [savedBlob],
+        "SupaBlaze-result." + extension,
+        { type: savedBlob.type || "application/octet-stream" }
+      );
+
+      try {
+        if (
+          navigator.share &&
+          navigator.canShare &&
+          navigator.canShare({ files: [file] })
+        ) {
+          await navigator.share({
+            files: [file],
+            title: "SupaBlaze Result"
+          });
+
+          return;
+        }
+      } catch (error) {
+        if (error.name === "AbortError") return;
+      }
+
+      const url = originalCreateURL(savedBlob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = file.name;
+      link.target = "_blank";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 60000);
+    };
+  }
+
+  if (openButton) {
+    openButton.textContent = "Preview Result";
+
+    openButton.onclick = function () {
+      if (!savedBlob) {
+        alert("Process the file again first.");
+        return;
+      }
+
+      if (!savedBlob.type.startsWith("image/")) {
+        downloadButton.click();
+        return;
+      }
+
+      const oldPreview = document.getElementById("sbPreviewOverlay");
+
+      if (oldPreview) oldPreview.remove();
+
+      const previewURL = originalCreateURL(savedBlob);
+      const overlay = document.createElement("div");
+
+      overlay.id = "sbPreviewOverlay";
+
+      overlay.innerHTML = `
+        <div class="sbPreviewPanel">
+          <button id="sbPreviewClose">×</button>
+          <p>Result preview</p>
+          <img src="${previewURL}" alt="SupaBlaze processed result">
+          <small>Press and hold the image if your phone provides a save option.</small>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      document.getElementById("sbPreviewClose").onclick = function () {
+        overlay.remove();
+        URL.revokeObjectURL(previewURL);
+      };
+    };
+  }
+})();
+</script>
+
+<style>
+#sbPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.94);
+}
+
+.sbPreviewPanel {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  padding: 16px;
+  overflow: auto;
+  text-align: center;
+  color: white;
+  border: 1px solid #8B5CF6;
+  border-radius: 18px;
+  background: #121216;
+}
+
+.sbPreviewPanel img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 74vh;
+  margin: 12px auto;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.sbPreviewPanel small {
+  color: #A1A1AA;
+}
+
+#sbPreviewClose {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 42px;
+  height: 42px;
+  color: white;
+  font-size: 25px;
+  border: 0;
+  border-radius: 50%;
+  background: #7C3AED;
+}
+</style>
 </body></html>
