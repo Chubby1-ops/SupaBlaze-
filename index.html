@@ -73,4 +73,28 @@ stat(card,$('.status',card).textContent==='Processing…'?'Complete — file dow
 let lastTouch=0;document.addEventListener('touchend',e=>{const b=e.target.closest('[data-act],.tabs button');if(!b)return;lastTouch=Date.now();e.preventDefault();if(b.matches('[data-act]'))runAction(b);else b.click()},{passive:false});document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||Date.now()-lastTouch<600)return;runAction(b)});
 compatibility();
 $$('.signature').forEach(c=>{const x=c.getContext('2d');x.strokeStyle='#8B5CF6';x.lineWidth=4;x.lineCap='round';let d=false;c.onpointerdown=e=>{d=true;const r=c.getBoundingClientRect();x.beginPath();x.moveTo((e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height)};c.onpointermove=e=>{if(!d)return;const r=c.getBoundingClientRect();x.lineTo((e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height);x.stroke()};c.onpointerup=()=>d=false});$$('.file').forEach(inp=>inp.onchange=()=>{const c=inp.closest('.tool'),m=$('.media',c);if(m&&inp.files[0])m.src=URL.createObjectURL(inp.files[0])});
-</script></body></html>
+</script> <style>
+/* Hide the temporary Monetag placeholder areas */
+.ad,
+.top-ad,
+#top-banner-ad,
+.sticky,
+.sticky-footer-ad,
+#footer-sticky-ad {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+body {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+}
+</style>
+</body></html>
