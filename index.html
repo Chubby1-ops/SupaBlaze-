@@ -103,9 +103,9 @@ show_12227094({
  type:'inApp',
  inAppSettings:{
   frequency:1,
-  capping:0.25,
-  interval:900,
-  timeout:90,
+  capping:0.167,
+  interval:600,
+  timeout:45,
   everyPage:false
  }
 });
@@ -231,382 +231,278 @@ document.getElementById("sbClose").onclick=function(){
       savedBlob = item;
     }
 
-    return originalCreateURL(item);
+return originalCreateURL(item);
   };
 
-  const downloadButton = document.getElementById("sbDownload");
-  const openButton = document.getElementById("sbOpen");
+  const insideTelegram =
+    Boolean(window.TelegramWebviewProxy) ||
+    Boolean(
+      window.Telegram &&
+      window.Telegram.WebApp &&
+      window.Telegram.WebApp.initData
+    );
 
-  function getResultDetails() {
-    let extension = "bin";
-    let mimeType = savedBlob.type || "application/octet-stream";
+  const supaBlazeURL =
+    window.location.origin +
+    window.location.pathname;
 
-    if (mimeType.includes("png")) extension = "png";
-    else if (mimeType.includes("jpeg")) extension = "jpg";
-    else if (mimeType.includes("webp")) extension = "webp";
-    else if (mimeType.includes("gif")) extension = "gif";
-    else if (mimeType.includes("wav")) extension = "wav";
-    else if (mimeType.includes("mpeg")) extension = "mp3";
-    else if (mimeType.includes("webm")) extension = "webm";
-    else if (mimeType.includes("mp4")) extension = "mp4";
-    else if (mimeType.includes("zip")) extension = "zip";
-    else if (mimeType.includes("pdf")) extension = "pdf";
-    else if (mimeType.includes("text")) extension = "txt";
+  function openSelectedTool(toolNumber) {
+    const toolURL =
+      supaBlazeURL +
+      "?tool=" +
+      encodeURIComponent(toolNumber) +
+      "#tool-" +
+      encodeURIComponent(toolNumber);
 
-    return {
-      extension: extension,
-      mimeType: mimeType,
-      fileName: "SupaBlaze-result." + extension
-    };
-  }
-
-  function closeResultPreview() {
-    const oldPreview =
-      document.getElementById("sbPreviewOverlay");
-
-    if (oldPreview) {
-      const oldURL = oldPreview.dataset.previewUrl;
-
-      oldPreview.remove();
-
-      if (oldURL) {
-        setTimeout(function () {
-          URL.revokeObjectURL(oldURL);
-        }, 1000);
-      }
-    }
-  }
-
-  function showResultPreview(message) {
-    if (!savedBlob) return;
-
-    closeResultPreview();
-
-    const details = getResultDetails();
-    const previewURL = originalCreateURL(savedBlob);
-    const overlay = document.createElement("div");
-
-    overlay.id = "sbPreviewOverlay";
-    overlay.dataset.previewUrl = previewURL;
-
-    let previewContent = "";
-
-    if (details.mimeType.startsWith("image/")) {
-      previewContent = `
-        <img
-          src="${previewURL}"
-          alt="SupaBlaze processed result"
-        >
-      `;
-    } else if (details.mimeType.startsWith("audio/")) {
-      previewContent = `
-        <audio
-          src="${previewURL}"
-          controls
-          style="width:100%;margin:20px 0;"
-        ></audio>
-      `;
-    } else if (details.mimeType.startsWith("video/")) {
-      previewContent = `
-        <video
-          src="${previewURL}"
-          controls
-          playsinline
-          style="width:100%;max-height:65vh;margin:20px 0;"
-        ></video>
-      `;
+    if (
+      window.Telegram &&
+      window.Telegram.WebApp &&
+      typeof window.Telegram.WebApp.openLink === "function"
+    ) {
+      window.Telegram.WebApp.openLink(toolURL);
     } else {
-      previewContent = `
-        <p class="sbFileReady">
-          ${details.fileName} is ready.
-        </p>
-      `;
-    }
-
-    overlay.innerHTML = `
-      <div class="sbPreviewPanel">
-
-        <button
-          id="sbPreviewClose"
-          type="button"
-          aria-label="Close preview"
-        >
-          ×
-        </button>
-
-        <div class="sbPreviewBrand">
-          SupaBlaze
-        </div>
-
-        <h3>Result ready</h3>
-
-        ${previewContent}
-
-        <p id="sbPreviewMessage">
-          ${message || "Your processed file is ready."}
-        </p>
-
-        <button
-          id="sbPreviewShare"
-          class="sbPreviewAction"
-          type="button"
-        >
-          Save / Share Result
-        </button>
-
-        <small>
-          Choose WhatsApp, Telegram, Drive, Files or another
-          available app from your phone’s share screen.
-        </small>
-
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    document.getElementById("sbPreviewClose").onclick =
-      closeResultPreview;
-
-    document.getElementById("sbPreviewShare").onclick =
-      shareResult;
-  }
-
-  async function shareResult() {
-    if (!savedBlob) {
-      if (downloadButton) {
-        downloadButton.textContent =
-          "Process a file first";
-      }
-
-      return;
-    }
-
-    const details = getResultDetails();
-    const message =
-      document.getElementById("sbPreviewMessage");
-
-    let file;
-
-    try {
-      file = new File(
-        [savedBlob],
-        details.fileName,
-        {
-          type: details.mimeType
-        }
-      );
-    } catch (fileError) {
-      file = null;
-    }
-
-    try {
-      if (
-        file &&
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({
-          files: [file]
-        })
-      ) {
-        await navigator.share({
-          title: "SupaBlaze Result",
-          text: "Created with SupaBlaze",
-          files: [file]
-        });
-
-        if (message) {
-          message.textContent =
-            "Result sent to the selected app.";
-        }
-
-        return;
-      }
-    } catch (shareError) {
-      if (
-        shareError &&
-        shareError.name === "AbortError"
-      ) {
-        return;
-      }
-    }
-
-    try {
-      const downloadURL =
-        originalCreateURL(savedBlob);
-
-      const link =
-        document.createElement("a");
-
-      link.href = downloadURL;
-      link.download = details.fileName;
-      link.rel = "noopener";
-      link.style.display = "none";
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setTimeout(function () {
-        URL.revokeObjectURL(downloadURL);
-      }, 60000);
-
-      showResultPreview(
-        "Your browser received the save request. If no download appeared, press and hold the preview or open SupaBlaze in Chrome."
-      );
-    } catch (downloadError) {
-      showResultPreview(
-        "Direct saving is unavailable in this Telegram version. Press and hold the preview, or open SupaBlaze in Chrome to save the result."
-      );
+      window.open(toolURL, "_blank");
     }
   }
 
-  if (downloadButton) {
-    downloadButton.textContent =
-      "Save / Share Result";
+  function prepareTelegramTools() {
+    if (!insideTelegram) return;
 
-    downloadButton.onclick = function () {
-      shareResult().catch(function () {
-        showResultPreview(
-          "Direct sharing is unavailable here. Use the preview or open SupaBlaze in Chrome."
-        );
+    document.documentElement.classList.add(
+      "sbTelegramMode"
+    );
+
+    document
+      .querySelectorAll("[data-n]")
+      .forEach(function (toolCard) {
+        if (
+          toolCard.querySelector(".sbBrowserLauncher")
+        ) {
+          return;
+        }
+
+        const toolNumber =
+          toolCard.getAttribute("data-n");
+
+        if (!toolNumber) return;
+
+        const launcher =
+          document.createElement("div");
+
+        launcher.className =
+          "sbBrowserLauncher";
+
+        launcher.innerHTML = `
+          <div class="sbLauncherStatus">
+            <strong>Ready to use this tool?</strong>
+            <span>
+              Open the full tool in your browser for
+              reliable processing, downloads and sharing.
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="sbLaunchButton"
+          >
+            Open Tool & Get Result
+          </button>
+        `;
+
+        const launchButton =
+          launcher.querySelector(
+            ".sbLaunchButton"
+          );
+
+        launchButton.onclick = function () {
+          launchButton.textContent =
+            "Opening tool…";
+
+          openSelectedTool(toolNumber);
+
+          setTimeout(function () {
+            launchButton.textContent =
+              "Open Tool & Get Result";
+          }, 2500);
+        };
+
+        toolCard.appendChild(launcher);
       });
-    };
   }
 
-  if (openButton) {
-    openButton.textContent =
-      "Preview Result";
+  function openRequestedBrowserTool() {
+    if (insideTelegram) return;
 
-    openButton.onclick = function () {
-      if (!savedBlob) {
-        openButton.textContent =
-          "Process a file first";
+    const requestedTool =
+      new URLSearchParams(
+        window.location.search
+      ).get("tool");
 
-        return;
-      }
+    if (!requestedTool) return;
 
-      showResultPreview(
-        "Preview generated successfully by SupaBlaze."
+    const requestedCard =
+      document.querySelector(
+        '[data-n="' +
+        CSS.escape(requestedTool) +
+        '"]'
       );
-    };
+
+    if (!requestedCard) return;
+
+    requestedCard.classList.add(
+      "sbRequestedTool"
+    );
+
+    setTimeout(function () {
+      requestedCard.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 450);
+
+    const firstInput =
+      requestedCard.querySelector(
+        'input[type="file"]'
+      );
+
+    if (firstInput) {
+      setTimeout(function () {
+        firstInput.click();
+      }, 1100);
+    }
+  }
+
+  function initialiseSupaBlazeFlow() {
+    prepareTelegramTools();
+    openRequestedBrowserTool();
+  }
+
+  if (
+    document.readyState === "loading"
+  ) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      initialiseSupaBlazeFlow,
+      { once: true }
+    );
+  } else {
+    initialiseSupaBlazeFlow();
   }
 
 })();
 </script>
 
 <style>
+#sbResultBox,
 #sbPreviewOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  background: rgba(0, 0, 0, 0.94);
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-.sbPreviewPanel {
-  position: relative;
+.sbBrowserLauncher {
+  display: none;
+}
+
+.sbTelegramMode
+[data-n]
+input,
+.sbTelegramMode
+[data-n]
+select,
+.sbTelegramMode
+[data-n]
+textarea,
+.sbTelegramMode
+[data-n]
+button:not(.sbLaunchButton) {
+  display: none !important;
+}
+
+.sbTelegramMode
+.sbBrowserLauncher {
+  display: block;
   width: 100%;
-  max-width: 720px;
-  max-height: 92vh;
-  padding: 18px;
-  overflow: auto;
-  text-align: center;
-  color: white;
-  border: 1px solid #8B5CF6;
-  border-radius: 18px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #694198;
+  border-radius: 14px;
   background:
     linear-gradient(
-      160deg,
-      #17131f,
-      #0a0a0e
+      145deg,
+      #17111f,
+      #0b0a0f
     );
   box-shadow:
-    0 22px 70px rgba(0, 0, 0, 0.85);
+    0 12px 32px
+    rgba(0, 0, 0, 0.34);
 }
 
-.sbPreviewBrand {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 7px 12px;
-  color: #d8b4fe;
+.sbLauncherStatus {
+  margin-bottom: 12px;
+}
+
+.sbLauncherStatus strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.sbLauncherStatus span {
+  display: block;
+  color: #b8b5c2;
   font-size: 13px;
-  font-weight: 900;
-  border: 1px solid #694198;
-  border-radius: 999px;
-  background: #21142f;
-}
-
-.sbPreviewPanel h3 {
-  margin: 7px 0 12px;
-  font-size: 23px;
-}
-
-.sbPreviewPanel img {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 68vh;
-  margin: 12px auto;
-  object-fit: contain;
-  border: 1px solid #302938;
-  border-radius: 12px;
-  background: #050507;
-}
-
-.sbPreviewPanel small {
-  display: block;
-  margin-top: 12px;
-  color: #A1A1AA;
   line-height: 1.5;
 }
 
-.sbPreviewPanel p {
-  color: #d4d4dc;
-  line-height: 1.5;
-}
-
-.sbPreviewAction {
+.sbLaunchButton {
+  display: block !important;
   width: 100%;
   min-height: 48px;
-  margin-top: 12px;
   padding: 12px 16px;
-  color: white;
+  color: #ffffff;
+  font-size: 14px;
   font-weight: 900;
   border: 0;
   border-radius: 11px;
   background:
     linear-gradient(
       135deg,
-      #8B5CF6,
-      #7C3AED
+      #8b5cf6,
+      #7c3aed
     );
   box-shadow:
-    0 10px 28px rgba(124, 58, 237, 0.35);
+    0 10px 28px
+    rgba(124, 58, 237, 0.36);
 }
 
-.sbFileReady {
-  margin: 20px 0;
-  padding: 18px;
-  overflow-wrap: anywhere;
-  border: 1px solid #3e3549;
-  border-radius: 12px;
-  background: #09090d;
+.sbRequestedTool {
+  outline:
+    2px solid #8b5cf6;
+  outline-offset: 5px;
+  animation:
+    sbToolGlow 1.4s ease 2;
 }
 
-#sbPreviewClose {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  width: 42px;
-  height: 42px;
-  color: white;
-  font-size: 25px;
-  border: 0;
-  border-radius: 50%;
-  background: #7C3AED;
+@keyframes sbToolGlow {
+  0% {
+    box-shadow:
+      0 0 0
+      rgba(139, 92, 246, 0);
+  }
+
+  50% {
+    box-shadow:
+      0 0 32px
+      rgba(139, 92, 246, 0.55);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0
+      rgba(139, 92, 246, 0);
+  }
 }
 </style>
 
@@ -614,3 +510,6 @@ document.getElementById("sbClose").onclick=function(){
 </html>
 
       
+  
+
+  
