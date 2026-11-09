@@ -506,6 +506,79 @@ button:not(.sbLaunchButton) {
 }
 </style>
 
+<style>
+#sbReturnToTelegram {
+  display: none;
+}
+
+.sbSingleToolMode [data-n] {
+  display: none !important;
+}
+
+.sbSingleToolMode [data-n].sbActiveBrowserTool {
+  display: block !important;
+}
+
+.sbSingleToolMode #sbReturnToTelegram {
+  display: block;
+  position: sticky;
+  bottom: 12px;
+  z-index: 99999;
+  width: calc(100% - 24px);
+  max-width: 720px;
+  margin: 18px auto;
+  padding: 14px;
+  text-align: center;
+  color: #ffffff;
+  font-weight: 900;
+  text-decoration: none;
+  border: 1px solid #9f7aea;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  box-shadow: 0 14px 35px rgba(109, 40, 217, 0.42);
+}
+</style>
+
+<a
+  id="sbReturnToTelegram"
+  href="https://t.me/SupaBlaze_bot/blazetoolkit"
+>
+  ✅ Done? Return to SupaBlaze
+</a>
+
+<script>
+(function () {
+  const selectedTool =
+    new URLSearchParams(window.location.search).get("tool");
+
+  const insideTelegram =
+    Boolean(window.TelegramWebviewProxy) ||
+    Boolean(
+      window.Telegram &&
+      window.Telegram.WebApp &&
+      window.Telegram.WebApp.initData
+    );
+
+  if (!selectedTool || insideTelegram) return;
+
+  document.documentElement.classList.add("sbSingleToolMode");
+
+  const selectedCard = document.querySelector(
+    '[data-n="' + selectedTool + '"]'
+  );
+
+  if (!selectedCard) return;
+
+  selectedCard.classList.add("sbActiveBrowserTool");
+
+  setTimeout(function () {
+    selectedCard.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }, 300);
+})();
+</script>
 </body>
 </html>
 
