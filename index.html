@@ -393,4 +393,92 @@ document.getElementById("sbClose").onclick=function(){
   background: #7C3AED;
 }
 </style>
+<script>
+(function () {
+  let latestFile = null;
+  const realCreateURL = URL.createObjectURL.bind(URL);
+
+  URL.createObjectURL = function (blob) {
+    if (blob instanceof Blob && blob.size > 0) {
+      latestFile = blob;
+    }
+    return realCreateURL(blob);
+  };
+
+  function activateShareButton() {
+    const download = document.getElementById("sbDownload");
+    const open = document.getElementById("sbOpen");
+
+    if (!download) return;
+
+    download.textContent = "Save / Share Result";
+
+    if (open) {
+      open.style.display = "none";
+    }
+
+    download.onclick = async function () {
+      if (!latestFile) {
+        download.textContent = "Process a file first";
+        return;
+      }
+
+      let ext = "bin";
+
+      if (latestFile.type.includes("png")) ext = "png";
+      else if (latestFile.type.includes("jpeg")) ext = "jpg";
+      else if (latestFile.type.includes("webp")) ext = "webp";
+      else if (latestFile.type.includes("wav")) ext = "wav";
+      else if (latestFile.type.includes("webm")) ext = "webm";
+      else if (latestFile.type.includes("zip")) ext = "zip";
+      else if (latestFile.type.includes("pdf")) ext = "pdf";
+      else if (latestFile.type.includes("text")) ext = "txt";
+
+      const file = new File(
+        [latestFile],
+        "SupaBlaze-result." + ext,
+        { type: latestFile.type || "application/octet-stream" }
+      );
+
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            title: "SupaBlaze Result",
+            files: [file]
+          });
+          return;
+        } catch (error) {
+          if (error.name === "AbortError") return;
+        }
+      }
+
+      const url = realCreateURL(latestFile);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = file.name;
+      link.target = "_blank";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 60000);
+    };
+  }
+
+  window.addEventListener("load", activateShareButton);
+
+  new MutationObserver(activateShareButton).observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+})();
+        </script>
 </body></html>
