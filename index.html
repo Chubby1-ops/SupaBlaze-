@@ -231,124 +231,266 @@ document.getElementById("sbClose").onclick=function(){
       savedBlob = item;
     }
 
-            return originalCreateURL(item);
+    return originalCreateURL(item);
   };
 
   const downloadButton = document.getElementById("sbDownload");
   const openButton = document.getElementById("sbOpen");
 
-  if (downloadButton) {
-    downloadButton.textContent = "Save / Share Result";
+  function getResultDetails() {
+    let extension = "bin";
+    let mimeType = savedBlob.type || "application/octet-stream";
 
-    downloadButton.onclick = async function () {
-      if (!savedBlob) {
-        downloadButton.textContent = "Process a file first";
-        return;
+    if (mimeType.includes("png")) extension = "png";
+    else if (mimeType.includes("jpeg")) extension = "jpg";
+    else if (mimeType.includes("webp")) extension = "webp";
+    else if (mimeType.includes("gif")) extension = "gif";
+    else if (mimeType.includes("wav")) extension = "wav";
+    else if (mimeType.includes("mpeg")) extension = "mp3";
+    else if (mimeType.includes("webm")) extension = "webm";
+    else if (mimeType.includes("mp4")) extension = "mp4";
+    else if (mimeType.includes("zip")) extension = "zip";
+    else if (mimeType.includes("pdf")) extension = "pdf";
+    else if (mimeType.includes("text")) extension = "txt";
+
+    return {
+      extension: extension,
+      mimeType: mimeType,
+      fileName: "SupaBlaze-result." + extension
+    };
+  }
+
+  function closeResultPreview() {
+    const oldPreview =
+      document.getElementById("sbPreviewOverlay");
+
+    if (oldPreview) {
+      const oldURL = oldPreview.dataset.previewUrl;
+
+      oldPreview.remove();
+
+      if (oldURL) {
+        setTimeout(function () {
+          URL.revokeObjectURL(oldURL);
+        }, 1000);
+      }
+    }
+  }
+
+  function showResultPreview(message) {
+    if (!savedBlob) return;
+
+    closeResultPreview();
+
+    const details = getResultDetails();
+    const previewURL = originalCreateURL(savedBlob);
+    const overlay = document.createElement("div");
+
+    overlay.id = "sbPreviewOverlay";
+    overlay.dataset.previewUrl = previewURL;
+
+    let previewContent = "";
+
+    if (details.mimeType.startsWith("image/")) {
+      previewContent = `
+        <img
+          src="${previewURL}"
+          alt="SupaBlaze processed result"
+        >
+      `;
+    } else if (details.mimeType.startsWith("audio/")) {
+      previewContent = `
+        <audio
+          src="${previewURL}"
+          controls
+          style="width:100%;margin:20px 0;"
+        ></audio>
+      `;
+    } else if (details.mimeType.startsWith("video/")) {
+      previewContent = `
+        <video
+          src="${previewURL}"
+          controls
+          playsinline
+          style="width:100%;max-height:65vh;margin:20px 0;"
+        ></video>
+      `;
+    } else {
+      previewContent = `
+        <p class="sbFileReady">
+          ${details.fileName} is ready.
+        </p>
+      `;
+    }
+
+    overlay.innerHTML = `
+      <div class="sbPreviewPanel">
+
+        <button
+          id="sbPreviewClose"
+          type="button"
+          aria-label="Close preview"
+        >
+          ×
+        </button>
+
+        <div class="sbPreviewBrand">
+          SupaBlaze
+        </div>
+
+        <h3>Result ready</h3>
+
+        ${previewContent}
+
+        <p id="sbPreviewMessage">
+          ${message || "Your processed file is ready."}
+        </p>
+
+        <button
+          id="sbPreviewShare"
+          class="sbPreviewAction"
+          type="button"
+        >
+          Save / Share Result
+        </button>
+
+        <small>
+          Choose WhatsApp, Telegram, Drive, Files or another
+          available app from your phone’s share screen.
+        </small>
+
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById("sbPreviewClose").onclick =
+      closeResultPreview;
+
+    document.getElementById("sbPreviewShare").onclick =
+      shareResult;
+  }
+
+  async function shareResult() {
+    if (!savedBlob) {
+      if (downloadButton) {
+        downloadButton.textContent =
+          "Process a file first";
       }
 
-      let extension = "bin";
+      return;
+    }
 
-      if (savedBlob.type.includes("png")) extension = "png";
-      else if (savedBlob.type.includes("jpeg")) extension = "jpg";
-      else if (savedBlob.type.includes("webp")) extension = "webp";
-      else if (savedBlob.type.includes("wav")) extension = "wav";
-      else if (savedBlob.type.includes("webm")) extension = "webm";
-      else if (savedBlob.type.includes("zip")) extension = "zip";
-      else if (savedBlob.type.includes("pdf")) extension = "pdf";
-      else if (savedBlob.type.includes("text")) extension = "txt";
+    const details = getResultDetails();
+    const message =
+      document.getElementById("sbPreviewMessage");
 
-      const file = new File(
+    let file;
+
+    try {
+      file = new File(
         [savedBlob],
-        "SupaBlaze-result." + extension,
+        details.fileName,
         {
-          type: savedBlob.type || "application/octet-stream"
+          type: details.mimeType
         }
       );
+    } catch (fileError) {
+      file = null;
+    }
 
-      try {
-        if (
-          navigator.share &&
-          navigator.canShare &&
-          navigator.canShare({ files: [file] })
-        ) {
-          await navigator.share({
-            files: [file],
-            title: "SupaBlaze Result"
-          });
+    try {
+      if (
+        file &&
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({
+          files: [file]
+        })
+      ) {
+        await navigator.share({
+          title: "SupaBlaze Result",
+          text: "Created with SupaBlaze",
+          files: [file]
+        });
 
-          return;
+        if (message) {
+          message.textContent =
+            "Result sent to the selected app.";
         }
-      } catch (error) {
-        if (error.name === "AbortError") return;
+
+        return;
       }
+    } catch (shareError) {
+      if (
+        shareError &&
+        shareError.name === "AbortError"
+      ) {
+        return;
+      }
+    }
 
-      const url = originalCreateURL(savedBlob);
-      const link = document.createElement("a");
+    try {
+      const downloadURL =
+        originalCreateURL(savedBlob);
 
-      link.href = url;
-      link.download = file.name;
-      link.target = "_blank";
+      const link =
+        document.createElement("a");
+
+      link.href = downloadURL;
+      link.download = details.fileName;
+      link.rel = "noopener";
+      link.style.display = "none";
 
       document.body.appendChild(link);
       link.click();
       link.remove();
 
       setTimeout(function () {
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(downloadURL);
       }, 60000);
+
+      showResultPreview(
+        "Your browser received the save request. If no download appeared, press and hold the preview or open SupaBlaze in Chrome."
+      );
+    } catch (downloadError) {
+      showResultPreview(
+        "Direct saving is unavailable in this Telegram version. Press and hold the preview, or open SupaBlaze in Chrome to save the result."
+      );
+    }
+  }
+
+  if (downloadButton) {
+    downloadButton.textContent =
+      "Save / Share Result";
+
+    downloadButton.onclick = function () {
+      shareResult().catch(function () {
+        showResultPreview(
+          "Direct sharing is unavailable here. Use the preview or open SupaBlaze in Chrome."
+        );
+      });
     };
   }
 
   if (openButton) {
-    openButton.textContent = "Preview Result";
+    openButton.textContent =
+      "Preview Result";
 
     openButton.onclick = function () {
       if (!savedBlob) {
-        openButton.textContent = "Process a file first";
+        openButton.textContent =
+          "Process a file first";
+
         return;
       }
 
-      if (!savedBlob.type.startsWith("image/")) {
-        if (downloadButton) downloadButton.click();
-        return;
-      }
-
-      const existingPreview =
-        document.getElementById("sbPreviewOverlay");
-
-      if (existingPreview) {
-        existingPreview.remove();
-      }
-
-      const previewURL = originalCreateURL(savedBlob);
-      const overlay = document.createElement("div");
-
-      overlay.id = "sbPreviewOverlay";
-
-      overlay.innerHTML = `
-        <div class="sbPreviewPanel">
-          <button id="sbPreviewClose">×</button>
-          <p>Result preview</p>
-          <img
-            src="${previewURL}"
-            alt="SupaBlaze processed result"
-          >
-          <small>
-            Use Save / Share Result to send the file to WhatsApp,
-            Telegram, Drive or Files.
-          </small>
-        </div>
-      `;
-
-      document.body.appendChild(overlay);
-
-      document.getElementById("sbPreviewClose").onclick =
-        function () {
-          overlay.remove();
-          URL.revokeObjectURL(previewURL);
-        };
+      showResultPreview(
+        "Preview generated successfully by SupaBlaze."
+      );
     };
   }
+
 })();
 </script>
 
@@ -369,29 +511,89 @@ document.getElementById("sbClose").onclick=function(){
   width: 100%;
   max-width: 720px;
   max-height: 92vh;
-  padding: 16px;
+  padding: 18px;
   overflow: auto;
   text-align: center;
   color: white;
   border: 1px solid #8B5CF6;
   border-radius: 18px;
-  background: #121216;
+  background:
+    linear-gradient(
+      160deg,
+      #17131f,
+      #0a0a0e
+    );
+  box-shadow:
+    0 22px 70px rgba(0, 0, 0, 0.85);
+}
+
+.sbPreviewBrand {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 7px 12px;
+  color: #d8b4fe;
+  font-size: 13px;
+  font-weight: 900;
+  border: 1px solid #694198;
+  border-radius: 999px;
+  background: #21142f;
+}
+
+.sbPreviewPanel h3 {
+  margin: 7px 0 12px;
+  font-size: 23px;
 }
 
 .sbPreviewPanel img {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 74vh;
+  max-height: 68vh;
   margin: 12px auto;
   object-fit: contain;
+  border: 1px solid #302938;
   border-radius: 12px;
+  background: #050507;
 }
 
 .sbPreviewPanel small {
   display: block;
+  margin-top: 12px;
   color: #A1A1AA;
   line-height: 1.5;
+}
+
+.sbPreviewPanel p {
+  color: #d4d4dc;
+  line-height: 1.5;
+}
+
+.sbPreviewAction {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  color: white;
+  font-weight: 900;
+  border: 0;
+  border-radius: 11px;
+  background:
+    linear-gradient(
+      135deg,
+      #8B5CF6,
+      #7C3AED
+    );
+  box-shadow:
+    0 10px 28px rgba(124, 58, 237, 0.35);
+}
+
+.sbFileReady {
+  margin: 20px 0;
+  padding: 18px;
+  overflow-wrap: anywhere;
+  border: 1px solid #3e3549;
+  border-radius: 12px;
+  background: #09090d;
 }
 
 #sbPreviewClose {
@@ -410,3 +612,5 @@ document.getElementById("sbClose").onclick=function(){
 
 </body>
 </html>
+
+      
