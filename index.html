@@ -110,4 +110,114 @@ show_12227094({
  }
 });
 </script>
+<style>
+#sbResultBox{
+  display:none;
+  position:fixed;
+  left:12px;
+  right:12px;
+  bottom:15px;
+  z-index:99999;
+  padding:14px;
+  border:1px solid #8B5CF6;
+  border-radius:16px;
+  background:#121216f5;
+  box-shadow:0 12px 40px #000;
+  color:white;
+}
+#sbResultBox.show{display:block}
+#sbResultBox button{
+  padding:12px 16px;
+  margin:5px;
+  border:0;
+  border-radius:10px;
+  background:#8B5CF6;
+  color:white;
+  font-weight:bold;
+}
+</style>
+
+<div id="sbResultBox">
+  <b>✅ Result Ready</b><br><br>
+  <button id="sbDownload">Download Result</button>
+  <button id="sbOpen">Open Result</button>
+  <button id="sbClose">×</button>
+</div>
+
+<script>
+(function(){
+
+let resultBlob=null;
+let resultURL=null;
+let resultName="SupaBlaze-result";
+
+const oldCreate=URL.createObjectURL.bind(URL);
+
+URL.createObjectURL=function(obj){
+
+  const u=oldCreate(obj);
+
+  if(obj instanceof Blob && obj.size>0){
+
+    resultBlob=obj;
+    resultURL=u;
+
+    const box=document.getElementById("sbResultBox");
+
+    if(box){
+      box.classList.add("show");
+    }
+  }
+
+  return u;
+};
+
+document.getElementById("sbDownload").onclick=function(){
+
+  if(!resultBlob)return;
+
+  const url=oldCreate(resultBlob);
+
+  const a=document.createElement("a");
+
+  a.href=url;
+
+  if(resultBlob.type.includes("png"))
+    resultName="SupaBlaze-result.png";
+  else if(resultBlob.type.includes("jpeg"))
+    resultName="SupaBlaze-result.jpg";
+  else if(resultBlob.type.includes("wav"))
+    resultName="SupaBlaze-result.wav";
+  else if(resultBlob.type.includes("webm"))
+    resultName="SupaBlaze-result.webm";
+  else if(resultBlob.type.includes("zip"))
+    resultName="SupaBlaze-results.zip";
+
+  a.download=resultName;
+
+  document.body.appendChild(a);
+
+  a.click();
+
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+};
+
+document.getElementById("sbOpen").onclick=function(){
+
+  if(!resultURL)return;
+
+  window.open(resultURL,"_blank");
+};
+
+document.getElementById("sbClose").onclick=function(){
+
+  document
+    .getElementById("sbResultBox")
+    .classList.remove("show");
+};
+
+})();
+</script>
 </body></html>
